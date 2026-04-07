@@ -1,12 +1,10 @@
 package cz.cvut.riskio
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -35,10 +33,9 @@ enum class MainScreen(val icon: ImageVector) {
 }
 
 data class TodoItem(
-    val id: Int,
+    val id: Long,
     val taskName: String,
-    val coinValue: Int,
-    var isDone: Boolean = false
+    val coinValue: Int
 )
 
 data class GambaWin(val icon: ImageVector, val label: String)
@@ -50,10 +47,7 @@ fun App() {
     var darkTheme by remember { mutableStateOf(true) }
     var coins by remember { mutableStateOf(50) }
     val todoList = remember { mutableStateListOf<TodoItem>() }
-
-    // Trophies already won
     val myCollection = remember { mutableStateListOf<GambaWin>() }
-    // Custom rewards waiting to be won
     val rewardPool = remember { mutableStateListOf<String>() }
 
     var currentMainScreen by remember { mutableStateOf(MainScreen.Home) }
@@ -94,6 +88,7 @@ fun App() {
                     MainScreen.Home -> RewardHome(myCollection, rewardPool)
                     MainScreen.Todo -> TodoScreen(todoList) { item ->
                         coins += item.coinValue
+                        todoList.remove(item)
                     }
                     MainScreen.Gamba -> GambaScreen(
                         currentCoins = coins,
@@ -110,16 +105,17 @@ fun App() {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RewardHome(collection: List<GambaWin>, rewardPool: MutableList<String>) {
     var rewardInput by remember { mutableStateOf("") }
+    val lastReward = collection.lastOrNull()
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        // --- REWARD POOL SETUP ---
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        // --- POOL SETUP ---
         Card(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Text("Gamba Pool Setup", fontWeight = FontWeight.Bold)
-                Text("Add items you want to win (e.g. 'Pizza Night')", style = MaterialTheme.typography.labelSmall)
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
                     TextField(
                         value = rewardInput,
@@ -136,62 +132,73 @@ fun RewardHome(collection: List<GambaWin>, rewardPool: MutableList<String>) {
                     }) { Text("Add") }
                 }
 
+                // --- SHOW THE POOL ---
                 if (rewardPool.isNotEmpty()) {
-                    Text(
-                        text = "Available to win: ${rewardPool.joinToString(", ")}",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 8.dp),
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text("Items in Pool:", style = MaterialTheme.typography.labelMedium)
+                    FlowRow(
+                        modifier = Modifier.padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rewardPool.forEach { item ->
+                            SuggestionChip(
+                                onClick = { rewardPool.remove(item) },
+                                label = { Text(item) },
+                                icon = { Icon(Icons.Default.Close, null, Modifier.size(14.dp)) }
+                            )
+                        }
+                    }
                 }
             }
         }
 
-        // --- TROPHY ROOM ---
-        Text("Trophy Room", style = MaterialTheme.typography.headlineMedium)
-        Text("Claimed rewards from Gamba", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-
+        Text("Current Reward", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (collection.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Empty... Win something in Gamba!", color = Color.Gray)
+        if (lastReward == null) {
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Text("Win something in Gamba to see it here!", color = Color.Gray)
             }
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(100.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            Card(
+                modifier = Modifier.size(250.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                shape = RoundedCornerShape(24.dp)
             ) {
-                items(collection) { win ->
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-                        Column(
-                            modifier = Modifier.padding(8.dp).fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(win.icon, null, modifier = Modifier.size(32.dp))
-                            Text(win.label, fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                        }
-                    }
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(lastReward.icon, null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        lastReward.label,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        textAlign = TextAlign.Center
+                    )
+                    Text("LATEST WIN", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 8.dp))
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TodoScreen(todoList: MutableList<TodoItem>, onTaskFinished: (TodoItem) -> Unit) {
+fun TodoScreen(todoList: MutableList<TodoItem>, onTaskClaimed: (TodoItem) -> Unit) {
     var taskInput by remember { mutableStateOf("") }
     var coinInput by remember { mutableStateOf("10") }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Card(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text("Add Task", fontWeight = FontWeight.Bold)
+                Text("New Task", fontWeight = FontWeight.Bold)
                 TextField(
                     value = taskInput,
                     onValueChange = { taskInput = it },
-                    placeholder = { Text("What needs doing?") },
+                    placeholder = { Text("What to do?") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
@@ -199,7 +206,7 @@ fun TodoScreen(todoList: MutableList<TodoItem>, onTaskFinished: (TodoItem) -> Un
                     value = coinInput,
                     onValueChange = { coinInput = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Coins Earned") },
+                    label = { Text("Reward Coins") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
 
@@ -208,33 +215,29 @@ fun TodoScreen(todoList: MutableList<TodoItem>, onTaskFinished: (TodoItem) -> Un
                     onClick = {
                         val amount = coinInput.toIntOrNull() ?: 10
                         if (taskInput.isNotBlank()) {
-                            todoList.add(TodoItem(todoList.size, taskInput, amount))
+                            todoList.add(TodoItem(todoList.size.toLong(), taskInput, amount))
                             taskInput = ""
                             coinInput = "10"
                         }
                     }
-                ) { Text("Create Task") }
+                ) { Text("Add") }
             }
         }
 
         LazyColumn {
-            items(todoList) { item ->
-                Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+            items(todoList, key = { it.id }) { item ->
+                Card(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(item.taskName, style = if (item.isDone) MaterialTheme.typography.bodyLarge.copy(color = Color.Gray) else MaterialTheme.typography.bodyLarge)
-                            Text("+${item.coinValue}💰 Reward", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            Text(item.taskName, style = MaterialTheme.typography.bodyLarge)
+                            Text("+${item.coinValue}💰", color = MaterialTheme.colorScheme.primary)
                         }
-                        if (!item.isDone) {
-                            Button(onClick = {
-                                val idx = todoList.indexOf(item)
-                                if (idx != -1) {
-                                    todoList[idx] = item.copy(isDone = true)
-                                    onTaskFinished(todoList[idx])
-                                }
-                            }) { Text("Claim") }
-                        } else {
-                            Icon(Icons.Default.CheckCircle, "Done", tint = Color.Green)
+                        Button(onClick = { onTaskClaimed(item) }) {
+                            Text("Done")
                         }
                     }
                 }
@@ -263,10 +266,9 @@ fun GambaScreen(currentCoins: Int, rewardPool: List<String>, onSpend: () -> Unit
         Text(
             text = msg,
             fontSize = 20.sp,
-            fontWeight = FontWeight.ExtraBold,
+            fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(bottom = 24.dp, start = 20.dp, end = 20.dp),
-            lineHeight = 28.sp
+            modifier = Modifier.padding(bottom = 24.dp, start = 20.dp, end = 20.dp)
         )
 
         Button(
@@ -285,27 +287,20 @@ fun GambaScreen(currentCoins: Int, rewardPool: List<String>, onSpend: () -> Unit
 
                     if (r1 == r2 && r2 == r3) {
                         val prize = rewardPool.random()
-                        msg = "JACKPOT! 🏆\nYou won: $prize"
+                        msg = "JACKPOT! 🏆\n$prize"
                         onWin(r1!!, prize)
                     }
                     else if (r1 == r2 || r2 == r3 || r1 == r3) {
                         val prize = rewardPool.random()
                         val winningIcon = listOfNotNull(r1, r2, r3).groupingBy { it }.eachCount().maxByOrNull { it.value }?.key ?: r1!!
-                        msg = "WIN! 🎁\nYou won: $prize"
+                        msg = "WIN! 🎁\n$prize"
                         onWin(winningIcon, prize)
                     }
-                    else {
-                        msg = "Try again!"
-                    }
+                    else msg = "Try again!"
                 }
             }
         ) {
-            val buttonText = when {
-                rewardPool.isEmpty() -> "Add Rewards in Home!"
-                currentCoins < 20 -> "Need 20💰"
-                else -> "SPIN 20💰"
-            }
-            Text(buttonText)
+            Text(if (rewardPool.isEmpty()) "Add Rewards First" else if (currentCoins < 20) "Need 20💰" else "SPIN 20💰")
         }
     }
 }
