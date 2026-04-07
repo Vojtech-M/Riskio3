@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,11 +26,23 @@ import androidx.compose.ui.tooling.preview.Preview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
+import riskio.composeapp.generated.resources.Res
+import riskio.composeapp.generated.resources.compose_multiplatform
+import riskio.composeapp.generated.resources.datagrip
+
 // --- Data Models ---
+
+sealed class SlotSymbol {
+    data class Vector(val icon: ImageVector) : SlotSymbol()
+    data class ImageRes(val res: DrawableResource) : SlotSymbol()
+}
+
 enum class MainScreen(val icon: ImageVector) {
     Home(Icons.Default.Home),
     Gamba(Icons.Default.PlayArrow),
-    Todo(Icons.Default.List)
+    Todo(Icons.AutoMirrored.Filled.List)
 }
 
 data class TodoItem(
@@ -38,7 +51,32 @@ data class TodoItem(
     val coinValue: Int
 )
 
-data class GambaWin(val icon: ImageVector, val label: String)
+data class GambaWin(val symbol: SlotSymbol, val label: String)
+
+// --- Components ---
+
+@Composable
+fun GenericIcon(
+    symbol: SlotSymbol,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    tint: Color = LocalContentColor.current
+) {
+    when (symbol) {
+        is SlotSymbol.Vector -> Icon(
+            imageVector = symbol.icon,
+            contentDescription = contentDescription,
+            modifier = modifier,
+            tint = tint
+        )
+        is SlotSymbol.ImageRes -> Icon(
+            painter = painterResource(symbol.res),
+            contentDescription = contentDescription,
+            modifier = modifier,
+            tint = Color.Unspecified 
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,7 +110,7 @@ fun App() {
             },
             bottomBar = {
                 NavigationBar {
-                    MainScreen.values().forEach { screen ->
+                    MainScreen.entries.forEach { screen ->
                         NavigationBarItem(
                             icon = { Icon(screen.icon, null) },
                             label = { Text(screen.name) },
@@ -94,8 +132,8 @@ fun App() {
                         currentCoins = coins,
                         rewardPool = rewardPool,
                         onSpend = { coins -= 20 },
-                        onWin = { icon, label ->
-                            myCollection.add(GambaWin(icon, label))
+                        onWin = { symbol, label ->
+                            myCollection.add(GambaWin(symbol, label))
                             rewardPool.remove(label)
                         }
                     )
@@ -112,7 +150,6 @@ fun RewardHome(collection: List<GambaWin>, rewardPool: MutableList<String>) {
     val lastReward = collection.lastOrNull()
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        // --- POOL SETUP ---
         Card(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Text("Gamba Pool Setup", fontWeight = FontWeight.Bold)
@@ -132,7 +169,6 @@ fun RewardHome(collection: List<GambaWin>, rewardPool: MutableList<String>) {
                     }) { Text("Add") }
                 }
 
-                // --- SHOW THE POOL ---
                 if (rewardPool.isNotEmpty()) {
                     Spacer(Modifier.height(12.dp))
                     Text("Items in Pool:", style = MaterialTheme.typography.labelMedium)
@@ -170,7 +206,12 @@ fun RewardHome(collection: List<GambaWin>, rewardPool: MutableList<String>) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Icon(lastReward.icon, null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary)
+                    GenericIcon(
+                        symbol = lastReward.symbol,
+                        contentDescription = null,
+                        modifier = Modifier.size(80.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Spacer(Modifier.height(16.dp))
                     Text(
                         lastReward.label,
@@ -226,11 +267,7 @@ fun TodoScreen(todoList: MutableList<TodoItem>, onTaskClaimed: (TodoItem) -> Uni
 
         LazyColumn {
             items(todoList, key = { it.id }) { item ->
-                Card(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
+                Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(item.taskName, style = MaterialTheme.typography.bodyLarge)
@@ -247,12 +284,28 @@ fun TodoScreen(todoList: MutableList<TodoItem>, onTaskClaimed: (TodoItem) -> Uni
 }
 
 @Composable
-fun GambaScreen(currentCoins: Int, rewardPool: List<String>, onSpend: () -> Unit, onWin: (ImageVector, String) -> Unit) {
-    val symbols = listOf(Icons.Default.Pets, Icons.Default.Face, Icons.Default.Favorite, Icons.Default.Star, Icons.Default.AutoAwesome, Icons.Default.Bolt)
+fun GambaScreen(
+    currentCoins: Int,
+    rewardPool: List<String>,
+    onSpend: () -> Unit,
+    onWin: (SlotSymbol, String) -> Unit
+) {
+    val symbols = remember {
+        listOf(
+            SlotSymbol.ImageRes(Res.drawable.datagrip),
+            SlotSymbol.ImageRes(Res.drawable.compose_multiplatform),
+            SlotSymbol.Vector(Icons.Default.Pets),
+            SlotSymbol.Vector(Icons.Default.Face),
+            SlotSymbol.Vector(Icons.Default.Favorite),
+            SlotSymbol.Vector(Icons.Default.Star),
+            SlotSymbol.Vector(Icons.Default.Bolt)
+        )
+    }
+
     val scope = rememberCoroutineScope()
-    var r1 by remember { mutableStateOf<ImageVector?>(null) }
-    var r2 by remember { mutableStateOf<ImageVector?>(null) }
-    var r3 by remember { mutableStateOf<ImageVector?>(null) }
+    var r1 by remember { mutableStateOf<SlotSymbol?>(null) }
+    var r2 by remember { mutableStateOf<SlotSymbol?>(null) }
+    var r3 by remember { mutableStateOf<SlotSymbol?>(null) }
     var isSpinning by remember { mutableStateOf(false) }
     var msg by remember { mutableStateOf("Spin for 20 Coins!") }
 
@@ -280,23 +333,34 @@ fun GambaScreen(currentCoins: Int, rewardPool: List<String>, onSpend: () -> Unit
                     isSpinning = true
                     msg = "Spinning..."
                     repeat(15) { i ->
-                        r1 = symbols.random(); if(i>5) r2 = symbols.random(); if(i>10) r3 = symbols.random()
+                        r1 = symbols.random()
+                        if(i > 5) r2 = symbols.random()
+                        if(i > 10) r3 = symbols.random()
                         delay(70)
                     }
                     isSpinning = false
 
-                    if (r1 == r2 && r2 == r3) {
+                    val final1 = r1
+                    val final2 = r2
+                    val final3 = r3
+
+                    if (final1 != null && final1 == final2 && final2 == final3) {
                         val prize = rewardPool.random()
                         msg = "JACKPOT! 🏆\n$prize"
-                        onWin(r1!!, prize)
+                        onWin(final1, prize)
                     }
-                    else if (r1 == r2 || r2 == r3 || r1 == r3) {
+                    else if (final1 != null && final2 != null && final3 != null && (final1 == final2 || final2 == final3 || final1 == final3)) {
                         val prize = rewardPool.random()
-                        val winningIcon = listOfNotNull(r1, r2, r3).groupingBy { it }.eachCount().maxByOrNull { it.value }?.key ?: r1!!
+                        val winningSymbol = listOf(final1, final2, final3)
+                            .groupingBy { it }
+                            .eachCount()
+                            .maxByOrNull { it.value }?.key ?: final1
                         msg = "WIN! 🎁\n$prize"
-                        onWin(winningIcon, prize)
+                        onWin(winningSymbol, prize)
                     }
-                    else msg = "Try again!"
+                    else {
+                        msg = "Try again!"
+                    }
                 }
             }
         ) {
@@ -306,7 +370,7 @@ fun GambaScreen(currentCoins: Int, rewardPool: List<String>, onSpend: () -> Unit
 }
 
 @Composable
-fun Reel(icon: ImageVector?) {
+fun Reel(symbol: SlotSymbol?) {
     Box(
         Modifier
             .size(90.dp)
@@ -314,7 +378,15 @@ fun Reel(icon: ImageVector?) {
             .border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center
     ) {
-        if (icon != null) Icon(icon, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
-        else Text("?", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+        if (symbol != null) {
+            GenericIcon(
+                symbol = symbol,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        } else {
+            Text("?", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+        }
     }
 }
