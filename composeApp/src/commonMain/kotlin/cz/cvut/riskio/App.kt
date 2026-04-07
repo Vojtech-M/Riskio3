@@ -1,101 +1,36 @@
 package cz.cvut.riskio
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import cz.cvut.riskio.ui.screens.GambaScreen
+import cz.cvut.riskio.ui.screens.RewardHome
+import cz.cvut.riskio.ui.screens.TodoScreen
 
-import org.jetbrains.compose.resources.DrawableResource
-import org.jetbrains.compose.resources.painterResource
-import riskio.composeapp.generated.resources.Res
-import riskio.composeapp.generated.resources.compose_multiplatform
-import riskio.composeapp.generated.resources.datagrip
-import riskio.composeapp.generated.resources.*
-import kotlin.random.Random
-
-// --- Data Models ---
-
-sealed class SlotSymbol {
-    data class Vector(val icon: ImageVector) : SlotSymbol()
-    data class ImageRes(val res: DrawableResource) : SlotSymbol()
-}
-
-enum class MainScreen(val icon: ImageVector) {
-    Home(Icons.Default.Home),
-    Gamba(Icons.Default.PlayArrow),
-    Todo(Icons.AutoMirrored.Filled.List)
-}
-
-data class TodoItem(
-    val id: Long,
-    val taskName: String,
-    val coinValue: Int
-)
-
-data class GambaWin(val symbol: SlotSymbol, val label: String)
-
-// --- Components ---
-
-@Composable
-fun GenericIcon(
-    symbol: SlotSymbol,
-    contentDescription: String?,
-    modifier: Modifier = Modifier,
-    tint: Color = LocalContentColor.current
-) {
-    when (symbol) {
-        is SlotSymbol.Vector -> Icon(
-            imageVector = symbol.icon,
-            contentDescription = contentDescription,
-            modifier = modifier,
-            tint = tint
-        )
-        is SlotSymbol.ImageRes -> Icon(
-            painter = painterResource(symbol.res),
-            contentDescription = contentDescription,
-            modifier = modifier,
-            tint = Color.Unspecified
-        )
-    }
-}
+// Define the modes for the spinning wheel
+enum class GambaMode { JETBRAINS, CLASSIC }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Preview
 fun App() {
+    // --- State Management ---
     var lang by remember { mutableStateOf(Language.EN) }
     val s = remember(lang) { Strings(lang) }
 
     var darkTheme by remember { mutableStateOf(true) }
+    var gambaMode by remember { mutableStateOf(GambaMode.JETBRAINS) }
     var coins by remember { mutableStateOf(50) }
+
     val todoList = remember { mutableStateListOf<TodoItem>() }
     val myCollection = remember { mutableStateListOf<GambaWin>() }
     val rewardPool = remember { mutableStateListOf<String>() }
@@ -114,6 +49,17 @@ fun App() {
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(end = 12.dp)
                         ) {
+                            // Gamba Mode Toggle (JetBrains vs Classic)
+                            IconButton(onClick = {
+                                gambaMode = if (gambaMode == GambaMode.JETBRAINS) GambaMode.CLASSIC else GambaMode.JETBRAINS
+                            }) {
+                                Icon(
+                                    imageVector = if (gambaMode == GambaMode.JETBRAINS) Icons.Default.Code else Icons.Default.Casino,
+                                    contentDescription = "Switch Gamba Mode",
+                                    tint = if (gambaMode == GambaMode.JETBRAINS) MaterialTheme.colorScheme.primary else Color(0xFF4CAF50)
+                                )
+                            }
+
                             // Language Toggle
                             TextButton(
                                 onClick = { lang = if (lang == Language.EN) Language.CZ else Language.EN },
@@ -129,7 +75,7 @@ fun App() {
 
                             Spacer(Modifier.width(8.dp))
 
-                            // Coins Display (Pill Shape on the right)
+                            // Coins Display
                             Surface(
                                 color = MaterialTheme.colorScheme.secondaryContainer,
                                 shape = RoundedCornerShape(16.dp)
@@ -183,9 +129,10 @@ fun App() {
                         todoList.remove(item)
                     }
                     MainScreen.Gamba -> GambaScreen(
-                        s,
+                        s = s,
                         currentCoins = coins,
                         rewardPool = rewardPool,
+                        mode = gambaMode, // Passing the mode to the screen
                         onSpend = { coins -= 20 },
                         onWin = { symbol, label ->
                             myCollection.add(GambaWin(symbol, label))
@@ -193,281 +140,6 @@ fun App() {
                         }
                     )
                 }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun RewardHome(s: Strings, collection: List<GambaWin>, rewardPool: MutableList<String>) {
-    var rewardInput by remember { mutableStateOf("") }
-    val lastReward = collection.lastOrNull()
-
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Card(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(s.setupPool, fontWeight = FontWeight.Bold)
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-                    TextField(
-                        value = rewardInput,
-                        onValueChange = { rewardInput = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text(s.rewardPlaceholder) }
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Button(onClick = {
-                        if (rewardInput.isNotBlank()) {
-                            rewardPool.add(rewardInput)
-                            rewardInput = ""
-                        }
-                    }) { Text(s.add) }
-                }
-
-                if (rewardPool.isNotEmpty()) {
-                    Spacer(Modifier.height(12.dp))
-                    Text(s.itemsInPool, style = MaterialTheme.typography.labelMedium)
-                    FlowRow(
-                        modifier = Modifier.padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        rewardPool.forEach { item ->
-                            SuggestionChip(
-                                onClick = { rewardPool.remove(item) },
-                                label = { Text(item) },
-                                icon = { Icon(Icons.Default.Close, null, Modifier.size(14.dp)) }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        Text(s.currentReward, style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (lastReward == null) {
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                Text(s.noWinYet, color = Color.Gray, textAlign = TextAlign.Center)
-            }
-        } else {
-            Card(
-                modifier = Modifier.size(250.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                shape = RoundedCornerShape(24.dp)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    GenericIcon(
-                        symbol = lastReward.symbol,
-                        contentDescription = null,
-                        modifier = Modifier.size(80.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        lastReward.label,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(s.latestWin, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 8.dp))
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun TodoScreen(s: Strings, todoList: MutableList<TodoItem>, onTaskClaimed: (TodoItem) -> Unit) {
-    var taskInput by remember { mutableStateOf("") }
-    var coinInput by remember { mutableStateOf("10") }
-
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Card(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(s.newTask, fontWeight = FontWeight.Bold)
-                TextField(
-                    value = taskInput,
-                    onValueChange = { taskInput = it },
-                    placeholder = { Text(s.taskPlaceholder) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
-                TextField(
-                    value = coinInput,
-                    onValueChange = { coinInput = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(s.coinReward) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-
-                Button(
-                    modifier = Modifier.align(Alignment.End).padding(top = 8.dp),
-                    onClick = {
-                        val amount = coinInput.toIntOrNull() ?: 10
-                        if (taskInput.isNotBlank()) {
-                            todoList.add(TodoItem(todoList.size.toLong(), taskInput, amount))
-                            taskInput = ""
-                            coinInput = "10"
-                        }
-                    }
-                ) { Text(s.add) }
-            }
-        }
-
-        LazyColumn {
-            items(todoList, key = { it.id }) { item ->
-                Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(item.taskName, style = MaterialTheme.typography.bodyLarge)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("+${item.coinValue}", color = MaterialTheme.colorScheme.primary)
-                                Icon(
-                                    imageVector = Icons.Default.Star,
-                                    contentDescription = null,
-                                    tint = Color(0xFFFFD700),
-                                    modifier = Modifier.size(16.dp).padding(start = 2.dp)
-                                )
-                            }
-                        }
-                        Button(onClick = { onTaskClaimed(item) }) {
-                            Text(s.done)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun GambaScreen(
-    s: Strings,
-    currentCoins: Int,
-    rewardPool: List<String>,
-    onSpend: () -> Unit,
-    onWin: (SlotSymbol, String) -> Unit
-) {
-    val symbols = remember {
-        listOf(
-            SlotSymbol.ImageRes(Res.drawable.datagrip),
-            SlotSymbol.ImageRes(Res.drawable.clion),
-            SlotSymbol.ImageRes(Res.drawable.idea),
-            SlotSymbol.ImageRes(Res.drawable.kotlin),
-            SlotSymbol.ImageRes(Res.drawable.php),
-            SlotSymbol.ImageRes(Res.drawable.py),
-            SlotSymbol.ImageRes(Res.drawable.we),
-        )
-    }
-
-    val scope = rememberCoroutineScope()
-    var r1 by remember { mutableStateOf<SlotSymbol?>(null) }
-    var r2 by remember { mutableStateOf<SlotSymbol?>(null) }
-    var r3 by remember { mutableStateOf<SlotSymbol?>(null) }
-    var isSpinning by remember { mutableStateOf(false) }
-    var msg by remember { mutableStateOf(s.spinCost) }
-
-    LaunchedEffect(s) {
-        if (!isSpinning) msg = s.spinCost
-    }
-
-    val canSpin = !isSpinning && currentCoins >= 20 && rewardPool.isNotEmpty()
-
-    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Row(Modifier.padding(24.dp)) {
-            Reel(r1); Spacer(Modifier.width(8.dp)); Reel(r2); Spacer(Modifier.width(8.dp)); Reel(r3)
-        }
-
-        Text(
-            text = msg,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(bottom = 24.dp, start = 20.dp, end = 20.dp)
-        )
-
-        Button(
-            enabled = canSpin,
-            modifier = Modifier.height(56.dp).fillMaxWidth(0.6f),
-            onClick = {
-                onSpend()
-                scope.launch {
-                    isSpinning = true
-                    msg = s.spinning
-
-                    val willWin = Random.nextFloat() < 0.40f
-                    val winningSymbol = symbols.random()
-
-                    repeat(15) { i ->
-                        r1 = if (i == 14 && willWin) winningSymbol else symbols.random()
-                        if(i > 5) {
-                            r2 = if (i == 14 && willWin) winningSymbol else symbols.random()
-                        }
-                        if(i > 10) {
-                            r3 = if (i == 14 && willWin) winningSymbol else symbols.random()
-                        }
-                        delay(70)
-                    }
-
-                    isSpinning = false
-
-                    val final1 = r1
-                    val final2 = r2
-                    val final3 = r3
-
-                    if (final1 != null && final1 == final2 && final2 == final3) {
-                        val prize = rewardPool.random()
-                        msg = "${s.jackpot}\n$prize"
-                        onWin(final1, prize)
-                    } else {
-                        msg = s.tryAgain
-                    }
-                }
-            }
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (rewardPool.isEmpty()) s.addRewardsFirst else if (currentCoins < 20) s.needCoins else s.spinBtn)
-                if (rewardPool.isNotEmpty() && currentCoins >= 20) {
-                    Spacer(Modifier.width(4.dp))
-                    Icon(Icons.Default.Star, null, tint = Color(0xFFFFD700), modifier = Modifier.size(18.dp))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun Reel(symbol: SlotSymbol?) {
-    Box(
-        Modifier
-            .size(90.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-            .border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        AnimatedContent(
-            targetState = symbol,
-            transitionSpec = {
-                (slideInVertically(animationSpec = tween(70)) { height -> -height } + fadeIn(animationSpec = tween(70))) togetherWith
-                        (slideOutVertically(animationSpec = tween(70)) { height -> height } + fadeOut(animationSpec = tween(70)))
-            },
-            label = "reel_spin_animation"
-        ) { targetSymbol ->
-            if (targetSymbol != null) {
-                GenericIcon(
-                    symbol = targetSymbol,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            } else {
-                Text("?", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
             }
         }
     }

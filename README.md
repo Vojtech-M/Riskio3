@@ -1,81 +1,65 @@
-This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop (JVM).
+# Riskio 🎰
 
-* [/composeApp](./composeApp/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./composeApp/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./composeApp/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./composeApp/src/jvmMain/kotlin)
-    folder is the appropriate location.
+**Riskio** is a gamified productivity application built with **Jetpack Compose**. It turns your daily tasks into currency, allowing you to "gamble" your hard-earned coins for real-world rewards that you define.
 
-* [/iosApp](./iosApp/iosApp) contains iOS applications. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
-
-### Build and Run Android Application
-
-To build and run the development version of the Android app, use the run configuration from the run widget
-in your IDE’s toolbar or build it directly from the terminal:
-- on macOS/Linux
-  ```shell
-  ./gradlew :composeApp:assembleDebug
-  ```
-- on Windows
-  ```shell
-  .\gradlew.bat :composeApp:assembleDebug
-  ```
-
-### Build and Run Desktop (JVM) Application
-
-To build and run the development version of the desktop app, use the run configuration from the run widget
-in your IDE’s toolbar or run it directly from the terminal:
-- on macOS/Linux
-  ```shell
-  ./gradlew :composeApp:run
-  ```
-- on Windows
-  ```shell
-  .\gradlew.bat :composeApp:run
-  ```
-
-### Build and Run Web Application
-
-To build and run the development version of the web app, use the run configuration from the run widget
-in your IDE's toolbar or run it directly from the terminal:
-- for the Wasm target (faster, modern browsers):
-  - on macOS/Linux
-    ```shell
-    ./gradlew :composeApp:wasmJsBrowserDevelopmentRun
-    ```
-  - on Windows
-    ```shell
-    .\gradlew.bat :composeApp:wasmJsBrowserDevelopmentRun
-    ```
-- for the JS target (slower, supports older browsers):
-  - on macOS/Linux
-    ```shell
-    ./gradlew :composeApp:jsBrowserDevelopmentRun
-    ```
-  - on Windows
-    ```shell
-    .\gradlew.bat :composeApp:jsBrowserDevelopmentRun
-    ```
-
-### Build and Run iOS Application
-
-To build and run the development version of the iOS app, use the run configuration from the run widget
-in your IDE’s toolbar or open the [/iosApp](./iosApp) directory in Xcode and run it from there.
+Whether you're a developer who wants to win "15 minutes of JetBrains research" or just someone trying to make chores more exciting, Riskio brings a bit of high-stakes fun to your To-Do list.
 
 ---
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html),
-[Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform/#compose-multiplatform),
-[Kotlin/Wasm](https://kotl.in/wasm/)…
+## ✨ Features
 
-We would appreciate your feedback on Compose/Web and Kotlin/Wasm in the public Slack channel [#compose-web](https://slack-chats.kotlinlang.org/c/compose-web).
-If you face any issues, please report them on [YouTrack](https://youtrack.jetbrains.com/newIssue?project=CMP).# Riskio3
-# Riskio3
-# Riskio3
-# Riskio3
-# Riskio3
-# Riskio3
+* **Task-to-Coin Pipeline**: Add tasks with custom coin values. Complete them to fill your wallet.
+* **The Gamba Wheel**: A fully animated three-reel slot machine with two distinct visual modes:
+  * **JetBrains Mode**: Spin for your favorite IDE logos (IntelliJ, CLion, Kotlin, etc.).
+  * **Classic Mode**: The traditional casino experience with hearts, stars, and lucky symbols.
+* **Custom Reward Pool**: You decide what you're playing for. Add custom rewards like "One Episode of Netflix" or "A Fancy Coffee."
+* **Collection Gallery**: Track all your past wins in a dedicated collection screen.
+* **Localization**: Full support for English (**EN**) and Czech (**CZ**).
+* **Dark/Light Mode**: Optimized UI for both late-night coding and daytime productivity.
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+* Android Studio (Ladybug or newer)
+* Kotlin 2.0+
+* Compose Multiplatform / Jetpack Compose environment
+
+### Installation
+1.  **Clone the repository**:
+    ```bash
+    git clone [https://github.com/yourusername/riskio.git](https://github.com/yourusername/riskio.git)
+    ```
+2.  Open the project in **Android Studio**.
+3.  **Sync** the project with Gradle files.
+4.  **Run** the app on your emulator or physical device.
+
+---
+
+## 🛠 Tech Stack
+
+* **UI**: [Jetpack Compose](https://developer.android.com/jetpack/compose) for a modern, declarative interface.
+* **Animations**: `AnimatedContent` and `Coroutine` based delays for smooth slot machine physics.
+* **State Management**: `remember`, `mutableStateOf`, and `mutableStateListOf` for reactive UI updates.
+* **Icons**: [JetBrains IDE Icons](https://www.jetbrains.com/company/brand/resources/) and Material Design Icons.
+
+---
+
+## 📖 How to Use
+
+1.  **Add Rewards**: Go to the **Home** tab and add rewards you want to win to your pool.
+2.  **Earn Coins**: Go to the **Todo** tab, create tasks, and click the "Check" icon once finished to earn coins.
+3.  **Spin & Win**: Navigate to the **Gamba** tab. Ensure you have at least **20 coins**. Hit **SPIN**!
+4.  **Claim**: If all three reels match, a random reward from your pool is awarded and added to your **Collection**.
+
+---
+
+## 🎨 Theme & Customization
+
+Riskio uses **Material 3 (M3)** with a dynamic color scheme. You can toggle between **JetBrains Mode** (Code icon) and **Classic Mode** (Dice icon) in the top bar to change the slot machine's aesthetic without affecting your coins or rewards.
+
+---
+
+## ⚖️ Disclaimer
+*This app is intended for productivity and personal entertainment purposes only. No real money is involved, and it does not promote actual gambling.* **Developed at CTU (ČVUT) - FIT.** 🦁
