@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
@@ -49,8 +50,12 @@ fun App() {
     var darkTheme by remember { mutableStateOf(true) }
     var coins by remember { mutableStateOf(50) }
     val todoList = remember { mutableStateListOf<TodoItem>() }
-    // Collection now only tracks actual Gamba rewards
+
+    // Trophies already won
     val myCollection = remember { mutableStateListOf<GambaWin>() }
+    // Custom rewards waiting to be won
+    val rewardPool = remember { mutableStateListOf<String>() }
+
     var currentMainScreen by remember { mutableStateOf(MainScreen.Home) }
 
     val colors = if (darkTheme) darkColorScheme() else lightColorScheme()
@@ -86,13 +91,19 @@ fun App() {
         ) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {
                 when (currentMainScreen) {
-                    MainScreen.Home -> RewardHome(myCollection)
+                    MainScreen.Home -> RewardHome(myCollection, rewardPool)
                     MainScreen.Todo -> TodoScreen(todoList) { item ->
                         coins += item.coinValue
                     }
-                    MainScreen.Gamba -> GambaScreen(coins, onSpend = { coins -= 20 }, onWin = { icon, label ->
-                        myCollection.add(GambaWin(icon, label))
-                    })
+                    MainScreen.Gamba -> GambaScreen(
+                        currentCoins = coins,
+                        rewardPool = rewardPool,
+                        onSpend = { coins -= 20 },
+                        onWin = { icon, label ->
+                            myCollection.add(GambaWin(icon, label))
+                            rewardPool.remove(label)
+                        }
+                    )
                 }
             }
         }
@@ -100,16 +111,51 @@ fun App() {
 }
 
 @Composable
-fun RewardHome(collection: List<GambaWin>) {
+fun RewardHome(collection: List<GambaWin>, rewardPool: MutableList<String>) {
+    var rewardInput by remember { mutableStateOf("") }
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        // --- REWARD POOL SETUP ---
+        Card(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text("Gamba Pool Setup", fontWeight = FontWeight.Bold)
+                Text("Add items you want to win (e.g. 'Pizza Night')", style = MaterialTheme.typography.labelSmall)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                    TextField(
+                        value = rewardInput,
+                        onValueChange = { rewardInput = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("Reward name...") }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = {
+                        if (rewardInput.isNotBlank()) {
+                            rewardPool.add(rewardInput)
+                            rewardInput = ""
+                        }
+                    }) { Text("Add") }
+                }
+
+                if (rewardPool.isNotEmpty()) {
+                    Text(
+                        text = "Available to win: ${rewardPool.joinToString(", ")}",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
+        // --- TROPHY ROOM ---
         Text("Trophy Room", style = MaterialTheme.typography.headlineMedium)
-        Text("Your Gamba winnings", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+        Text("Claimed rewards from Gamba", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
 
         Spacer(modifier = Modifier.height(16.dp))
 
         if (collection.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No trophies yet. Spin the slots!", color = Color.Gray)
+                Text("Empty... Win something in Gamba!", color = Color.Gray)
             }
         } else {
             LazyVerticalGrid(
@@ -124,7 +170,7 @@ fun RewardHome(collection: List<GambaWin>) {
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(win.icon, null, modifier = Modifier.size(32.dp))
-                            Text(win.label, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text(win.label, fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                         }
                     }
                 }
@@ -198,7 +244,7 @@ fun TodoScreen(todoList: MutableList<TodoItem>, onTaskFinished: (TodoItem) -> Un
 }
 
 @Composable
-fun GambaScreen(currentCoins: Int, onSpend: () -> Unit, onWin: (ImageVector, String) -> Unit) {
+fun GambaScreen(currentCoins: Int, rewardPool: List<String>, onSpend: () -> Unit, onWin: (ImageVector, String) -> Unit) {
     val symbols = listOf(Icons.Default.Pets, Icons.Default.Face, Icons.Default.Favorite, Icons.Default.Star, Icons.Default.AutoAwesome, Icons.Default.Bolt)
     val scope = rememberCoroutineScope()
     var r1 by remember { mutableStateOf<ImageVector?>(null) }
@@ -207,42 +253,73 @@ fun GambaScreen(currentCoins: Int, onSpend: () -> Unit, onWin: (ImageVector, Str
     var isSpinning by remember { mutableStateOf(false) }
     var msg by remember { mutableStateOf("Spin for 20 Coins!") }
 
+    val canSpin = !isSpinning && currentCoins >= 20 && rewardPool.isNotEmpty()
+
     Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Row(Modifier.padding(24.dp)) {
             Reel(r1); Spacer(Modifier.width(8.dp)); Reel(r2); Spacer(Modifier.width(8.dp)); Reel(r3)
         }
-        Text(msg, fontSize = 18.sp, modifier = Modifier.padding(bottom = 16.dp))
+
+        Text(
+            text = msg,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.ExtraBold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = 24.dp, start = 20.dp, end = 20.dp),
+            lineHeight = 28.sp
+        )
+
         Button(
-            enabled = !isSpinning && currentCoins >= 20,
+            enabled = canSpin,
+            modifier = Modifier.height(56.dp).fillMaxWidth(0.6f),
             onClick = {
                 onSpend()
                 scope.launch {
                     isSpinning = true
+                    msg = "Spinning..."
                     repeat(15) { i ->
                         r1 = symbols.random(); if(i>5) r2 = symbols.random(); if(i>10) r3 = symbols.random()
                         delay(70)
                     }
                     isSpinning = false
+
                     if (r1 == r2 && r2 == r3) {
-                        msg = "JACKPOT! 🏆"
-                        onWin(r1!!, "JACKPOT WIN")
+                        val prize = rewardPool.random()
+                        msg = "JACKPOT! 🏆\nYou won: $prize"
+                        onWin(r1!!, prize)
                     }
                     else if (r1 == r2 || r2 == r3 || r1 == r3) {
-                        msg = "Win! 🎁"
-                        val winningIcon = listOfNotNull(r1, r2, r3).groupingBy { it }.eachCount().maxBy { it.value }.key
-                        onWin(winningIcon, "Lucky Prize")
+                        val prize = rewardPool.random()
+                        val winningIcon = listOfNotNull(r1, r2, r3).groupingBy { it }.eachCount().maxByOrNull { it.value }?.key ?: r1!!
+                        msg = "WIN! 🎁\nYou won: $prize"
+                        onWin(winningIcon, prize)
                     }
-                    else msg = "Try again!"
+                    else {
+                        msg = "Try again!"
+                    }
                 }
             }
-        ) { Text(if (currentCoins < 20) "Low Balance" else "SPIN 20💰") }
+        ) {
+            val buttonText = when {
+                rewardPool.isEmpty() -> "Add Rewards in Home!"
+                currentCoins < 20 -> "Need 20💰"
+                else -> "SPIN 20💰"
+            }
+            Text(buttonText)
+        }
     }
 }
 
 @Composable
 fun Reel(icon: ImageVector?) {
-    Box(Modifier.size(80.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)).border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-        if (icon != null) Icon(icon, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
-        else Text("?", fontSize = 30.sp)
+    Box(
+        Modifier
+            .size(90.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (icon != null) Icon(icon, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+        else Text("?", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
     }
 }
