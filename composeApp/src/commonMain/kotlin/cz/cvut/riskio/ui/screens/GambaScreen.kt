@@ -50,13 +50,14 @@ fun GambaScreen(
         } else {
             // Classic Mode Icons
             listOf(
-                SlotSymbol.Vector(Icons.Default.Favorite),
-                SlotSymbol.Vector(Icons.Default.Star),
-                SlotSymbol.Vector(Icons.Default.ThumbUp),
-                SlotSymbol.Vector(Icons.Default.Face),
-                SlotSymbol.Vector(Icons.Default.Build),
-                SlotSymbol.Vector(Icons.Default.ShoppingCart),
-                SlotSymbol.Vector(Icons.Default.Notifications)
+                SlotSymbol.ImageRes(Res.drawable.dia),
+                SlotSymbol.ImageRes(Res.drawable.mone),
+                SlotSymbol.ImageRes(Res.drawable.seven),
+                SlotSymbol.ImageRes(Res.drawable.cher),
+                SlotSymbol.ImageRes(Res.drawable.lem),
+                SlotSymbol.ImageRes(Res.drawable.luck),
+                SlotSymbol.ImageRes(Res.drawable.pod)
+
             )
         }
     }
