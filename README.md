@@ -1,6 +1,6 @@
 # Riskio 🎰
 
-**Riskio** is a gamified productivity application built with **Jetpack Compose**. It turns your daily tasks into currency, allowing you to "gamble" your hard-earned coins for real-world rewards that you define.
+**Riskio** is a gamified productivity application built with **Jetpack Compose**. It turns your comleted tasks into currency, allowing you to "gamble" your hard-earned coins for real-world rewards that you define.
 
 Whether you're a developer who wants to win "15 minutes of JetBrains research" or just someone trying to make chores more exciting, Riskio brings a bit of high-stakes fun to your To-Do list.
 
@@ -8,12 +8,12 @@ Whether you're a developer who wants to win "15 minutes of JetBrains research" o
 
 ## ✨ Features
 
-* **Task-to-Coin Pipeline**: Add tasks with custom coin values. Complete them to fill your wallet.
+* **Task-to-Coin Pipeline**: Add tasks. For each task you will gain 10 coins. Complete them to fill your wallet.
 * **The Gamba Wheel**: A fully animated three-reel slot machine with two distinct visual modes:
-  * **JetBrains Mode**: Spin for your favorite IDE logos (IntelliJ, CLion, Kotlin, etc.).
-  * **Classic Mode**: The traditional casino experience with hearts, stars, and lucky symbols.
+    * **JetBrains Mode**: Spin for your favorite IDE logos (IntelliJ, CLion, Kotlin, etc.).
+    * **Classic Mode**: The traditional casino experience with hearts, stars, and lucky symbols.
 * **Custom Reward Pool**: You decide what you're playing for. Add custom rewards like "One Episode of Netflix" or "A Fancy Coffee."
-* **Collection Gallery**: Track all your past wins in a dedicated collection screen.
+* **Price Display**: On screen is presented your own prce to motivate you
 * **Localization**: Full support for English (**EN**) and Czech (**CZ**).
 * **Dark/Light Mode**: Optimized UI for both late-night coding and daytime productivity.
 
@@ -51,7 +51,7 @@ Whether you're a developer who wants to win "15 minutes of JetBrains research" o
 1.  **Add Rewards**: Go to the **Home** tab and add rewards you want to win to your pool.
 2.  **Earn Coins**: Go to the **Todo** tab, create tasks, and click the "Check" icon once finished to earn coins.
 3.  **Spin & Win**: Navigate to the **Gamba** tab. Ensure you have at least **20 coins**. Hit **SPIN**!
-4.  **Claim**: If all three reels match, a random reward from your pool is awarded and added to your **Collection**.
+1.	4.  **Claim**: If all three reels match, a random reward from your pool is awarded and shown on the **Price Display**.
 
 ---
 
@@ -63,3 +63,9 @@ Riskio uses **Material 3 (M3)** with a dynamic color scheme. You can toggle betw
 
 ## ⚖️ Disclaimer
 *This app is intended for productivity and personal entertainment purposes only. No real money is involved, and it does not promote actual gambling.* **Developed at CTU (ČVUT) - FIT.** 🦁
+
+## 👥 Contributors
+- [Vojtěch Michal](https://github.com/Vojtech-M)
+- [Patrik Pašek](https://github.com/pasekpatrik)
+- [Barbora Gregorová](https://github.com/sfmbg)
+- [Magdalena Lebedová](https://github.com/majdajede)
