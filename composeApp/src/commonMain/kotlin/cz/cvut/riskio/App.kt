@@ -1,5 +1,12 @@
 package cz.cvut.riskio
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,6 +39,7 @@ import riskio.composeapp.generated.resources.Res
 import riskio.composeapp.generated.resources.compose_multiplatform
 import riskio.composeapp.generated.resources.datagrip
 import riskio.composeapp.generated.resources.*
+import kotlin.random.Random
 
 
 // --- Localization ---
@@ -60,8 +68,8 @@ class Strings(val lang: Language) {
     val jackpot = if (lang == Language.EN) "JACKPOT!" else "JACKPOT!"
     val win = if (lang == Language.EN) "WIN!" else "VÝHRA!"
     val addRewardsFirst = if (lang == Language.EN) "Add Rewards First" else "Nejdřív přidej odměny"
-    val needCoins = if (lang == Language.EN) "Need 20💰" else "Potřebuješ 20💰"
-    val spinBtn = if (lang == Language.EN) "SPIN 20💰" else "HRAVAT 20💰"
+    val needCoins = if (lang == Language.EN) "Need 20 Coins" else "Potřebuješ 20 mincí"
+    val spinBtn = if (lang == Language.EN) "SPIN 20" else "HRÁT 20"
 }
 
 // --- Data Models ---
@@ -349,7 +357,15 @@ fun TodoScreen(s: Strings, todoList: MutableList<TodoItem>, onTaskClaimed: (Todo
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(item.taskName, style = MaterialTheme.typography.bodyLarge)
-                            Text("+${item.coinValue}💰", color = MaterialTheme.colorScheme.primary)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("+${item.coinValue}", color = MaterialTheme.colorScheme.primary)
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFFD700),
+                                    modifier = Modifier.size(16.dp).padding(start = 2.dp)
+                                )
+                            }
                         }
                         Button(onClick = { onTaskClaimed(item) }) {
                             Text(s.done)
@@ -373,7 +389,6 @@ fun GambaScreen(
         listOf(
             SlotSymbol.ImageRes(Res.drawable.datagrip),
             SlotSymbol.ImageRes(Res.drawable.clion),
-            SlotSymbol.ImageRes(Res.drawable.datagrip),
             SlotSymbol.ImageRes(Res.drawable.idea),
             SlotSymbol.ImageRes(Res.drawable.kotlin),
             SlotSymbol.ImageRes(Res.drawable.php),
@@ -416,12 +431,21 @@ fun GambaScreen(
                 scope.launch {
                     isSpinning = true
                     msg = s.spinning
+
+                    val willWin = Random.nextFloat() < 0.40f
+                    val winningSymbol = symbols.random()
+
                     repeat(15) { i ->
-                        r1 = symbols.random()
-                        if(i > 5) r2 = symbols.random()
-                        if(i > 10) r3 = symbols.random()
+                        r1 = if (i == 14 && willWin) winningSymbol else symbols.random()
+                        if(i > 5) {
+                            r2 = if (i == 14 && willWin) winningSymbol else symbols.random()
+                        }
+                        if(i > 10) {
+                            r3 = if (i == 14 && willWin) winningSymbol else symbols.random()
+                        }
                         delay(70)
                     }
+
                     isSpinning = false
 
                     val final1 = r1
@@ -432,23 +456,19 @@ fun GambaScreen(
                         val prize = rewardPool.random()
                         msg = "${s.jackpot}\n$prize"
                         onWin(final1, prize)
-                    }
-                    else if (final1 != null && final2 != null && final3 != null && (final1 == final2 || final2 == final3 || final1 == final3)) {
-                        val prize = rewardPool.random()
-                        val winningSymbol = listOf(final1, final2, final3)
-                            .groupingBy { it }
-                            .eachCount()
-                            .maxByOrNull { it.value }?.key ?: final1
-                        msg = "${s.win}\n$prize"
-                        onWin(winningSymbol, prize)
-                    }
-                    else {
+                    } else {
                         msg = s.tryAgain
                     }
                 }
             }
         ) {
-            Text(if (rewardPool.isEmpty()) s.addRewardsFirst else if (currentCoins < 20) s.needCoins else s.spinBtn)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(if (rewardPool.isEmpty()) s.addRewardsFirst else if (currentCoins < 20) s.needCoins else s.spinBtn)
+                if (rewardPool.isNotEmpty() && currentCoins >= 20) {
+                    Spacer(Modifier.width(4.dp))
+                    Icon(Icons.Default.Star, null, tint = Color(0xFFFFD700), modifier = Modifier.size(18.dp))
+                }
+            }
         }
     }
 }
@@ -462,15 +482,24 @@ fun Reel(symbol: SlotSymbol?) {
             .border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center
     ) {
-        if (symbol != null) {
-            GenericIcon(
-                symbol = symbol,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-        } else {
-            Text("?", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+        AnimatedContent(
+            targetState = symbol,
+            transitionSpec = {
+                (slideInVertically(animationSpec = tween(70)) { height -> -height } + fadeIn(animationSpec = tween(70))) togetherWith
+                        (slideOutVertically(animationSpec = tween(70)) { height -> height } + fadeOut(animationSpec = tween(70)))
+            },
+            label = "reel_spin_animation"
+        ) { targetSymbol ->
+            if (targetSymbol != null) {
+                GenericIcon(
+                    symbol = targetSymbol,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Text("?", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+            }
         }
     }
 }
